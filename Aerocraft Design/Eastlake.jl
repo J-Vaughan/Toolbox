@@ -107,6 +107,7 @@ module GA
 export H_ENGR, H_TOOL, H_MFG, C_ENGR, C_DEV, C_FT, C_TOOL, C_MFG, C_QC, C_MAT, C_FIX, C_VAR, VSC_GEAR, VSC_AV, C_PP, N_ENGR, N_TOOL, N_MFG, T_AC
 
 using ..Airplanes
+using ..Eastlake
 # Work Hours
 # ----------
 
@@ -114,7 +115,7 @@ using ..Airplanes
 function H_ENGR(Plane::Airplane)
     Wₐ = Plane.Weight.Airframe
     Vₕ = Plane.V_H
-    F_CERT_1 = Plane.Certification == LSA ? 2/3 : 1
+    F_CERT_1 = Plane.Certification == LSA ? 2/3 : Plane.Certification == FAR_23 ? 1 : throw(ArgumentError("Certification must be LSA or FAR 23"))
     F_CF_1 = Plane.Flaps.Complex ? 1.03 : 1
     F_COMP_1 = 1 + Plane.CompositeFraction
     F_PRESS_1 = Plane.Pressurized ? 1.03 : 1
@@ -142,7 +143,7 @@ function H_MFG(Plane::Airplane)
     Wₐ = Plane.Weight.Airframe
     Vₕ = Plane.V_H
     N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
-    F_CERT_3 = Plane.Certification == LSA ? 0.75 : 1
+    F_CERT_3 = Plane.Certification == LSA ? 0.75 : Plane.Certification == FAR_23 ? 1 : throw(ArgumentError("Certification must be LSA or FAR 23"))
     F_CF_3 = Plane.Flaps.Complex ? 1.01 : 1
     F_COMP_3 = 1 + 0.25 * Plane.CompositeFraction
 
@@ -151,8 +152,6 @@ end
 
 # Cost Estimation
 # ---------------
-
-using ..Eastlake
 
 # Total Cost of Engineering
 function C_ENGR(Plane::Airplane, R_ENGR = R_ENGR)
@@ -164,7 +163,7 @@ function C_DEV(Plane::Airplane)
     Wₐ = Plane.Weight.Airframe
     Vₕ = Plane.V_H
     Nₚ = Plane.Prototypes
-    F_CERT_5 = Plane.Certification == LSA ? 0.5 : 1
+    F_CERT_5 = Plane.Certification == LSA ? 0.5 : Plane.Certification == FAR_23 ? 1 : throw(ArgumentError("Certification must be LSA or FAR 23"))
     F_CF_5 = Plane.Flaps.Complex ? 1.01 : 1
     F_COMP_5 = 1 + 0.5 * Plane.CompositeFraction
     F_PRESS_5 = Plane.Pressurized ? 1.03 : 1
@@ -177,7 +176,7 @@ function C_FT(Plane::Airplane)
     Wₐ = Plane.Weight.Airframe
     Vₕ = Plane.V_H
     Nₚ = Plane.Prototypes
-    F_CERT_6 = Plane.Certification == LSA ? 10 : 5
+    F_CERT_6 = Plane.Certification == LSA ? 10 : Plane.Certification == FAR_23 ? 5 : throw(ArgumentError("Certification must be LSA or FAR 23"))
 
     C_FT = 0.009646 * Wₐ^1.16 * Vₕ^1.3718 * Nₚ^1.281 * CPI_2012 * F_CERT_6
 end # Alternative expression exists when more information is known
@@ -194,7 +193,7 @@ end
 
 # Total Cost of Quality Control
 function C_QC(Plane::Airplane)
-    F_CERT_9 = Plane.Certification == LSA ? 0.5 : 1
+    F_CERT_9 = Plane.Certification == LSA ? 0.5 : Plane.Certification == FAR_23 ? 1 : throw(ArgumentError("Certification must be LSA or FAR 23"))
     F_COMP_9 = 1 + 0.5 * Plane.CompositeFraction
 
     C_QC = 0.13 * C_MFG(Plane) * F_CERT_9 * F_COMP_9
@@ -204,7 +203,7 @@ end
 function C_MAT(Plane::Airplane)
     Wₐ = Plane.Weight.Airframe
     Vₕ = Plane.V_H
-    F_CERT_10 = Plane.Certification == LSA ? 0.75 : 1
+    F_CERT_10 = Plane.Certification == LSA ? 0.75 : Plane.Certification == FAR_23 ? 1 : throw(ArgumentError("Certification must be LSA or FAR 23"))
     F_CF_10 = Plane.Flaps.Complex ? 1.02 : 1
     F_PRESS_10 = Plane.Pressurized ? 1.01 : 1
     N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
@@ -305,10 +304,141 @@ function T_AC(Plane::Airplane)
 end
 
 end # module GA
+
+module BA
+using ..Airplanes
+using ..Eastlake
+
+export H_ENGR, H_TOOL, H_MFG, C_ENGR, C_DEV, C_FT, C_TOOL, C_MFG, C_QC, C_MAT, C_FIX, C_VAR, N_ENGR, N_TOOL, N_MFG, T_AC
+
+function H_ENGR(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    F_CERT_1 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.15 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_CF_1 = Plane.Flaps.Complex ? 1.03 : 1
+    F_COMP_1 = 1 + Plane.CompositeFraction
+    F_PRESS_1 = Plane.Pressurized ? 1.03 : 1
+    N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
+
+    H_ENGR = 4.86 * Wₐ^0.777 * Vₕ^0.894 * N^0.163 * F_CERT_1 * F_CF_1 * F_COMP_1 * F_PRESS_1
+end
+
+function H_TOOL(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
+    F_CERT_2 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.05 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_TAPER_2 = Plane.Wings.Taper == 1 ? 0.95 : 1
+    F_CF_2 = Plane.Flaps.Complex ? 1.02 : 1
+    F_COMP_2 = 1 + Plane.CompositeFraction
+    F_PRESS_2 = Plane.Pressurized ? 1.01 : 1
+
+    H_TOOL = 5.99 * Wₐ^0.777 * Vₕ^0.696 * N^0.263 * F_CERT_2 * F_TAPER_2 * F_CF_2 * F_COMP_2 * F_PRESS_2
+end
+
+function H_MFG(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
+    F_CERT_3 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.05 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_CF_3 = Plane.Flaps.Complex ? 1.01 : 1
+    F_COMP_3 = 1 + 0.25 * Plane.CompositeFraction
+
+    H_MFG = 7.37 * Wₐ^0.82 * Vₕ^0.484 * N^0.641 * F_CERT_3 * F_CF_3 * F_COMP_3
+end
+
+function C_ENGR(Plane::Airplane, R_ENGR = R_ENGR)
+    C_ENGR = H_ENGR(Plane) * R_ENGR * CPI_2012
+end
+
+function C_DEV(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    F_CERT_5 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.10 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_CF_5 = Plane.Flaps.Complex ? 1.01 : 1
+    F_COMP_5 = 1 + 0.5 * Plane.CompositeFraction
+    F_PRESS_5 = Plane.Pressurized ? 1.03 : 1
+
+    C_DEV = 95.24 * Wₐ^0.63 * Vₕ^1.3 * CPI_2012 * F_CERT_5 * F_CF_5 * F_COMP_5 * F_PRESS_5
+end
+
+function C_FT(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    Nₚ = Plane.Prototypes
+    F_CERT_6 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.50 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+
+    C_FT = 2606.51 * Wₐ^0.325 * Vₕ^0.822 * Nₚ^1.121 * CPI_2012 * F_CERT_6
+end
+
+function C_TOOL(Plane::Airplane, R_TOOL = R_TOOL)
+    C_TOOL = H_TOOL(Plane) * R_TOOL * CPI_2012
+end
+
+function C_MFG(Plane::Airplane, R_MFG = R_MFG)
+    C_MFG = H_MFG(Plane) * R_MFG * CPI_2012
+end
+
+function C_QC(Plane::Airplane)
+    F_CERT_9 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.50 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_COMP_9 = 1 + 0.5 * Plane.CompositeFraction
+
+    C_QC = 0.133 * C_MFG(Plane) * F_CERT_9 * F_COMP_9
+end
+
+function C_MAT(Plane::Airplane)
+    Wₐ = Plane.Weight.Airframe
+    Vₕ = Plane.V_H
+    F_CERT_10 = Plane.Certification == FAR_23 ? 1 : Plane.Certification == FAR_25 ? 1.15 : throw(ArgumentError("Certification must be FAR 23 or FAR 25"))
+    F_CF_10 = Plane.Flaps.Complex ? 1.02 : 1
+    F_PRESS_10 = Plane.Pressurized ? 1.01 : 1
+    N = 5 * Plane.Production.Number / Plane.Production.Run # Planes produced per 5 years
+
+    C_MAT = 23.066 * Wₐ^0.921 * Vₕ^0.621 * N^0.799 * CPI_2012 * F_CERT_10 * F_CF_10 * F_PRESS_10
+end
+
+function C_FIX(Plane::Airplane)
+    C_FIX = C_ENGR(Plane) + C_DEV(Plane) + C_FT(Plane) + C_TOOL(Plane)
+end
+
+function C_VAR(Plane::Airplane)
+    N = Plane.Production.Number
+    C_VSC = mapreduce(x -> x.UnitCost * x.Quantity, +, Plane.VSC)
+    C_INS = INS_FACTOR * Plane.SellingPrice
+
+    C_VAR = (C_MFG(Plane) + C_QC(Plane) + C_MAT(Plane)) / N + C_VSC + C_INS
+end
+
+# Miscellaneous
+# -------------
+
+# Number of engineers needed given assumptions
+function N_ENGR(Plane:: Airplane, H_per_week::Number, N_weeks::Number, Period::Number)
+    N_ENGR = round(H_ENGR(Plane) / (H_per_week * N_weeks * Period))
+end
+
+# Number of tooling technicians needed given assumptions
+function N_TOOL(Plane:: Airplane, H_per_week::Number, N_weeks::Number, Period::Number)
+    N_TOOL = round(H_TOOL(Plane) / (H_per_week * N_weeks * Period))
+end
+
+# Number of manufacturing technicians needed given assumptions
+function N_MFG(Plane:: Airplane, H_per_week::Number, N_weeks::Number, Period::Number)
+    N_MFG = round(H_MFG(Plane) / (H_per_week * N_weeks * Period))
+end
+
+# Average time to manufacture a single unit
+function T_AC(Plane::Airplane)
+    T_AC = H_MFG(Plane) / Plane.Production.Number
+end
+
+
+end # module BA
+
 end # module Eastlake
 
 using .Airplanes
-using .Eastlake.GA
+using .Eastlake.BA
 
 # Example 2-1
 # -----------
