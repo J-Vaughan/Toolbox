@@ -1,3 +1,6 @@
+module Airplanes
+export Airplane, Certification, EngineType, Flaps, Weight, Production, Wing, LandingGear, Power, Engine, Engines, SIMPLE_FLAPS, ALUMINUM, COMPOSITE, UNPRESSURIZED, PRESSURIZED, LSA, FAR_23, FAR_25, FAR_27, FAR_29, Piston, Turboprop, Turbofan, Turbojet
+
 @enum Certification begin
     LSA
     FAR_23
@@ -76,13 +79,6 @@ struct Airplane
     SellingPrice::UInt64
 end
 
-#const CPI_2012 = 1.3367 # Consumer Price Index in 2023 relative to 2012
-const CPI_2012 = 1.1 # Consumer Price Index in 2019 relative to 2012
-const CPI_2019 = 1.2186 # Consumer Price Index in 2023 relative to 2019
-const R_ENGR = 92.5 # Engineering Rate ($/hr) in 2012
-const R_TOOL = 61.5 # Tooling Rate ($/hr) in 2012
-const R_MFG = 53.5 # Manufacturing Rate ($/hr) in 2012
-const INS_FACTOR = 1.15 # Insurance Factor (of selling price)
 
 const SIMPLE_FLAPS = Flaps(false)
 const ALUMINUM = 0
@@ -90,6 +86,27 @@ const COMPOSITE = 1
 const UNPRESSURIZED = false
 const PRESSURIZED = true
 
+
+end # module Airplane
+
+using .Airplanes
+module Eastlake
+export CPI_2012, CPI_2019, R_ENGR, R_TOOL, R_MFG, INS_FACTOR
+
+#const CPI_2012 = 1.3367 # Consumer Price Index in 2023 relative to 2012
+const CPI_2012 = 1.1 # Consumer Price Index in 2019 relative to 2012
+#const CPI_2019 = 1.2003 # Consumer Price Index in 2023 relative to 2019
+const CPI_2019 = 1.0 # Consumer Price Index in 2019 relative to 2019
+const R_ENGR = 92.5 # Engineering Rate ($/hr) in 2012
+const R_TOOL = 61.5 # Tooling Rate ($/hr) in 2012
+const R_MFG = 53.5 # Manufacturing Rate ($/hr) in 2012
+const INS_FACTOR = 1.15 # Insurance Factor (of selling price)
+
+using ..Airplanes
+module GA
+export H_ENGR, H_TOOL, H_MFG, C_ENGR, C_DEV, C_FT, C_TOOL, C_MFG, C_QC, C_MAT, C_FIX, C_VAR, VSC_GEAR, VSC_AV, C_PP, N_ENGR, N_TOOL, N_MFG, T_AC
+
+using ..Airplanes
 # Work Hours
 # ----------
 
@@ -134,6 +151,8 @@ end
 
 # Cost Estimation
 # ---------------
+
+using ..Eastlake
 
 # Total Cost of Engineering
 function C_ENGR(Plane::Airplane, R_ENGR = R_ENGR)
@@ -284,6 +303,12 @@ end
 function T_AC(Plane::Airplane)
     T_AC = H_MFG(Plane) / Plane.Production.Number
 end
+
+end # module GA
+end # module Eastlake
+
+using .Airplanes
+using .Eastlake.GA
 
 # Example 2-1
 # -----------
