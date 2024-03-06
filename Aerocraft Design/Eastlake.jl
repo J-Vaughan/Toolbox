@@ -93,10 +93,10 @@ using .Airplanes
 module Eastlake
 export CPI_2012, CPI_2019, R_ENGR, R_TOOL, R_MFG, INS_FACTOR
 
-#const CPI_2012 = 1.3367 # Consumer Price Index in 2023 relative to 2012
-const CPI_2012 = 1.1 # Consumer Price Index in 2019 relative to 2012
-#const CPI_2019 = 1.2003 # Consumer Price Index in 2023 relative to 2019
-const CPI_2019 = 1.0 # Consumer Price Index in 2019 relative to 2019
+const CPI_2012 = 1.3367 # Consumer Price Index in 2023 relative to 2012
+#const CPI_2012 = 1.1 # Consumer Price Index in 2019 relative to 2012
+const CPI_2019 = 1.2003 # Consumer Price Index in 2023 relative to 2019
+#const CPI_2019 = 1.0 # Consumer Price Index in 2019 relative to 2019
 const R_ENGR = 92.5 # Engineering Rate ($/hr) in 2012
 const R_TOOL = 61.5 # Tooling Rate ($/hr) in 2012
 const R_MFG = 53.5 # Manufacturing Rate ($/hr) in 2012
@@ -403,10 +403,68 @@ end
 
 function C_VAR(Plane::Airplane)
     N = Plane.Production.Number
-    C_VSC = mapreduce(x -> x.UnitCost * x.Quantity, +, Plane.VSC)
+    # C_VSC = mapreduce(x -> x.UnitCost * x.Quantity, +, Plane.VSC)
+    C_VSC = VSC_GEAR(Plane) + VSC_AV(Plane) + C_PP(Plane)
     C_INS = INS_FACTOR * Plane.SellingPrice
 
     C_VAR = (C_MFG(Plane) + C_QC(Plane) + C_MAT(Plane)) / N + C_VSC + C_INS
+end
+
+# VSCs
+# ----
+
+# Fixed vs Retractable Landing Gear
+function VSC_GEAR(Plane::Airplane)
+    VSC_GEAR = Plane.LandingGear.Retractable ? 0 : -17500
+end
+
+# Avionics
+function VSC_AV(Plane::Airplane)
+    if Plane.Engines.Quantity == 1
+        if Plane.Engines.Engine.Type == Piston
+            VSC_AV = (6000 + 35000) / 2
+        elseif Plane.Engines.Engine.Type == Turboprop
+            VSC_AV = (35000 + 60000) / 2
+        end
+    elseif Plane.Engines.Quantity >= 2
+        if Plane.Engines.Engine.Type == Piston && Plane.Engines.Quantity == 2
+            VSC_AV = (35000 + 60000) / 2
+        elseif Plane.Engines.Engine.Type == Turboprop
+            VSC_AV = (40000 + 100000) / 2
+        elseif Plane.Engines.Engine.Type == Turbojet
+            VSC_AV = (200000 + 300000) / 2
+        end
+    else
+        VSC_AV = 0
+    end
+end
+
+# Engines
+function C_PP(Plane::Airplane)
+    if Plane.Engines.Engine.Type == Piston
+        N_ENG = Plane.Engines.Quantity
+        N_cyl = Plane.Engines.Engine.Pistons * Plane.Engines.Quantity
+        P_BHP = Plane.Engines.Engine.Power.BrakeHP
+
+        C_PP = N_eng * CPI_2019 * (1007 * N_cyl ^ 3 - 22620 * N_cyl ^ 2 + 155800 * N_cyl - 0.01447 * P_BHP ^ 3 + 8.654 * P_BHP ^ 2 - 1349 * P_BHP + 203900)
+    elseif Plane.Engines.Engine.Type == Turboprop
+        N_ENG = Plane.Engines.Quantity
+        P_SHP = Plane.Engines.Engine.Power.ShaftHP
+
+        C_PP = 377.4 * N_ENG * P_SHP * CPI_2012
+    elseif Plane.Engines.Engine.Type == Turbojet
+        N_ENG = Plane.Engines.Quantity
+        T₀ = Plane.Engines.Engine.RatedThrust
+
+        C_PP = 868.1 * N_ENG * T₀^0.8356 * CPI_2012
+    elseif Plane.Engines.Engine.Type == Turbofan
+        N_ENG = Plane.Engines.Quantity
+        T₀ = Plane.Engines.Engine.RatedThrust
+
+        C_PP = 1035.9 * N_ENG * T₀^0.8356 * CPI_2012
+    else
+        C_PP = 0
+    end
 end
 
 # Miscellaneous
@@ -440,34 +498,75 @@ end # module Eastlake
 using .Airplanes
 using .Eastlake.BA
 
-# Example 2-1
-# -----------
-println("Example 2-1")
-Plane₂₁1 = Airplane(FAR_23, SIMPLE_FLAPS, COMPOSITE, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 0, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
-println(string(round(H_ENGR(Plane₂₁1))) * " ✓")
-println(string(round(H_TOOL(Plane₂₁1))) * " ✓")
-println(string(round(H_MFG(Plane₂₁1))) * " ✓")
+# # Example 2-1
+# # -----------
+# println("Example 2-1")
+# Plane₂₁1 = Airplane(FAR_23, SIMPLE_FLAPS, COMPOSITE, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 0, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
+# println(string(round(H_ENGR(Plane₂₁1))) * " ✓")
+# println(string(round(H_TOOL(Plane₂₁1))) * " ✓")
+# println(string(round(H_MFG(Plane₂₁1))) * " ✓")
 
-println(string(N_ENGR(Plane₂₁1, 40, 48, 5)) * " ✓")
+# println(string(N_ENGR(Plane₂₁1, 40, 48, 5)) * " ✓")
 
-println(string(round(T_AC(Plane₂₁1))) * " ✓")
-Plane₂₁2 = Airplane(FAR_23, SIMPLE_FLAPS, ALUMINUM, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 0, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
-println(string(round(H_ENGR(Plane₂₁2))) * " ✓")
-println(string(round(H_TOOL(Plane₂₁2))) * " ✓")
-println(string(round(H_MFG(Plane₂₁2))) * " ✓")
+# println(string(round(T_AC(Plane₂₁1))) * " ✓")
+# Plane₂₁2 = Airplane(FAR_23, SIMPLE_FLAPS, ALUMINUM, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 0, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
+# println(string(round(H_ENGR(Plane₂₁2))) * " ✓")
+# println(string(round(H_TOOL(Plane₂₁2))) * " ✓")
+# println(string(round(H_MFG(Plane₂₁2))) * " ✓")
 
-println(string(N_ENGR(Plane₂₁2, 40, 48, 5)) * " ✓")
+# println(string(N_ENGR(Plane₂₁2, 40, 48, 5)) * " ✓")
 
-println(string(round(T_AC(Plane₂₁2))) * " ✓")
+# println(string(round(T_AC(Plane₂₁2))) * " ✓")
 
-# Example 2-2
-# -----------
-println("Example 2-2")
-Plane₂₂1 = Airplane(FAR_23, SIMPLE_FLAPS, COMPOSITE, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 4, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
-println(string(round(C_ENGR(Plane₂₂1, 92))) * " ✓")
-println(string(round(C_DEV(Plane₂₂1))) * " ✓")
-println(string(round(C_FT(Plane₂₂1))) * " ✓")
-println(string(round(C_TOOL(Plane₂₂1, 61))) * " ✓")
-println(string(round(C_MFG(Plane₂₂1, 53))) * " ✓")
-println(string(round(C_QC(Plane₂₂1))) * " ✓")
-println(string(round(C_MAT(Plane₂₂1))) * " ✓")
+# # Example 2-2
+# # -----------
+# println("Example 2-2")
+# Plane₂₂1 = Airplane(FAR_23, SIMPLE_FLAPS, COMPOSITE, UNPRESSURIZED, Weight(1100, 0), 185, Production(1000, 5), Wing(1.1, 0, 0, 0), 4, LandingGear(false, 3, 0), Engines(Engine(0, Power(0, 0), Piston, 0, 0), 1, 0), 0)
+# println(string(round(C_ENGR(Plane₂₂1, 92))) * " ✓")
+# println(string(round(C_DEV(Plane₂₂1))) * " ✓")
+# println(string(round(C_FT(Plane₂₂1))) * " ✓")
+# println(string(round(C_TOOL(Plane₂₂1, 61))) * " ✓")
+# println(string(round(C_MFG(Plane₂₂1, 53))) * " ✓")
+# println(string(round(C_QC(Plane₂₂1))) * " ✓")
+# println(string(round(C_MAT(Plane₂₂1))) * " ✓")
+
+
+# Preliminary Design
+# ------------------
+using Formatting
+println("Preliminary Design")
+Prelim = Airplane(FAR_25, SIMPLE_FLAPS, ALUMINUM, UNPRESSURIZED, Weight(40000, 0), 287, Production(225, 6), Wing(0.27, 23, 9.71, 2202), 1, LandingGear(true, 3, 0), Engines(Engine(6000, Power(6000, 6000), Turbojet, 0, 2554), 4, 20000000), 30000000)
+# Certification: FAR 25
+# Flaps: Simple
+# Composite Fraction: 0
+# Pressurized: Unpressurized
+# Weight: 81,000 [lb]
+# V_H: 286.784 KTAS
+# Production: 225 planes over 5 years
+# Wing:
+#   Taper: 0.27
+#   Sweep: 23 [degree]
+#   Aspect Ratio: 9.71
+#   Area: 2202 [ft^2] assuming wingspan of b = (116 + 185)/2 = 150 [ft]
+# Prototypes: 1
+# Landing Gear: Retractable, 3 units, $0
+# Engines: 4 engines, 6000 lbf thrust, 6000 SHP, Jet, 2554 lb, $20,000,000
+# Selling Price: $15,000,000 
+
+# Engineers: 40
+println(format(round(H_ENGR(Prelim)), commas=true) * " Engineering Hours")
+println(format(round(H_TOOL(Prelim)), commas=true) * " Tooling Hours")
+println(format(round(H_MFG(Prelim)), commas=true) * " Manufacturing Hours")
+println(format(round(C_ENGR(Prelim)), commas=true) * " Engineering Cost")
+println(format(round(C_DEV(Prelim)), commas=true) * " Development Support Cost")
+println(format(round(C_FT(Prelim)), commas=true) * " Flight Test Operations Cost")
+println(format(round(C_TOOL(Prelim)), commas=true) * " Tooling Cost")
+println(format(round(C_MFG(Prelim)), commas=true) * " Manufacturing Cost")
+println(format(round(C_QC(Prelim)), commas=true) * " Quality Control Cost")
+println(format(round(C_MAT(Prelim)), commas=true) * " Materials Cost")
+println(format(round(C_FIX(Prelim)), commas=true) * " Fixed Cost")
+println(format(round(C_VAR(Prelim)), commas=true) * " Variable Cost")
+println(format(round(C_FIX(Prelim) / Prelim.Production.Number + C_VAR(Prelim)), commas=true) * " Cost per Plane")
+println(format(round(C_FIX(Prelim) + C_VAR(Prelim) * Prelim.Production.Number), commas=true) * " Total Cost")
+println("----------------------------------------")
+println(format(round(H_ENGR(Prelim) / (40 * 48 * 300)), commas=true) * " Years with 300 Engineers")
