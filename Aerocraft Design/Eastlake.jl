@@ -433,6 +433,8 @@ function VSC_AV(Plane::Airplane)
             VSC_AV = (40000 + 100000) / 2
         elseif Plane.Engines.Engine.Type == Turbojet
             VSC_AV = (200000 + 300000) / 2
+        elseif Plane.Engines.Engine.Type == Turbofan
+            VSC_AV = (300000 + 400000) / 2 # baseless
         end
     else
         VSC_AV = 0
@@ -570,3 +572,67 @@ println(format(round(C_FIX(Prelim) / Prelim.Production.Number + C_VAR(Prelim)), 
 println(format(round(C_FIX(Prelim) + C_VAR(Prelim) * Prelim.Production.Number), commas=true) * " Total Cost")
 println("----------------------------------------")
 println(format(round(H_ENGR(Prelim) / (40 * 48 * 300)), commas=true) * " Years with 300 Engineers")
+
+# Iteration 2
+# -----------
+println("\n\n\nIteration 2")
+Iteration2 = Airplane(
+    FAR_25,
+    SIMPLE_FLAPS, # No justification
+    ALUMINUM, # No indicated need for composite
+    UNPRESSURIZED, # No indicated need for pressurization TODO: Investigate w.r.t. FAR 25, Payload, and Service Ceiling
+    Weight(
+        7000, # Lower bound of Commuter Proplines
+        15000, # Middle bound of Commuter Proplines
+    ),
+    516, # 516.211 KTAS for Mach 0.9 at 65,000 ft
+    Production(
+        175, # (6 hr flight-to-next-flight, 4 flights per day, 7 days a week, 52 weeks a year, 10% unavailable, rounded up to nearest 25)
+        5, # 5 years (ballpark)
+    ),
+    Wing(
+        0.27, # No justification
+        23, # No justification
+        9.71, # No justification
+        860, # Max end of Commuter Proplines
+    ),
+    1, # No justification, 1 prototype
+    LandingGear(
+        true, # must be retractable
+        3, # 3 units, tricycle
+        0, # No cost (TODO: Investigate)
+    ),
+    Engines( # Medium bypass turbofan (may need LBR according to Figure 7-1)
+        Engine(
+            2966, # 2966 lbf thrust (Turbomeca-SNECMA Larzac 04-C6) (no justification)
+            Power(
+                0, # n/a
+                0, # n/a
+            ),
+            Turbofan, # Medium bypass turbofan (no justification)
+            0, # No Pistons
+            650, # 650.35 lb (Turbomeca-SNECMA Larzac 04-C6) (no justification)
+        ),
+        2, # 2 engines (let's go light)
+        2000000, # $20,000,000 (no justification) TODO: Investigate
+    ),
+    30_000_000, # $150,000,000 (no justification)    
+)
+
+# Engineers: 100
+println(format(round(H_ENGR(Iteration2)), commas=true) * " Engineering Hours")
+println(format(round(H_TOOL(Iteration2)), commas=true) * " Tooling Hours")
+println(format(round(H_MFG(Iteration2)), commas=true) * " Manufacturing Hours")
+println(format(round(C_ENGR(Iteration2)), commas=true) * " Engineering Cost")
+println(format(round(C_DEV(Iteration2)), commas=true) * " Development Support Cost")
+println(format(round(C_FT(Iteration2)), commas=true) * " Flight Test Operations Cost")
+println(format(round(C_TOOL(Iteration2)), commas=true) * " Tooling Cost")
+println(format(round(C_MFG(Iteration2)), commas=true) * " Manufacturing Cost")
+println(format(round(C_QC(Iteration2)), commas=true) * " Quality Control Cost")
+println(format(round(C_MAT(Iteration2)), commas=true) * " Materials Cost")
+println(format(round(C_FIX(Iteration2)), commas=true) * " Fixed Cost")
+println(format(round(C_VAR(Iteration2)), commas=true) * " Variable Cost")
+println(format(round(C_FIX(Iteration2) / Iteration2.Production.Number + C_VAR(Iteration2)), commas=true) * " Cost per Plane")
+println(format(round(C_FIX(Iteration2) + C_VAR(Iteration2) * Iteration2.Production.Number), commas=true) * " Total Cost")
+println("----------------------------------------")
+println(format(round(H_ENGR(Iteration2) / (40 * 48 * 100)), commas=true) * " Years with 100 Engineers")
